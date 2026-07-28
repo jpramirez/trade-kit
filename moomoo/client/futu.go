@@ -71,6 +71,7 @@ type Client struct {
 	conn         net.Conn
 	paper        bool
 	accID        int64
+	trdEnv       int // 0=simulate, 1=real (matches the discovered account)
 	connID       uint64
 	userID       uint64
 	securityFirm int
@@ -395,10 +396,10 @@ func (c *Client) ModifyOrder(orderID string, qty int64, price, auxPrice float64,
 func (c *Client) trdHeader() map[string]any {
 	mkt := c.trdMarket
 	if mkt == 0 {
-		mkt = trdMarketSG // never send 0 — OpenD rejects unknown market
+		mkt = trdMarketSG
 	}
 	return map[string]any{
-		"trdEnv":    trdEnvReal,
+		"trdEnv":    c.trdEnv, // matches the discovered account's environment
 		"accID":     c.accID,
 		"trdMarket": mkt,
 	}
@@ -442,23 +443,50 @@ func (c *Client) discoverAccID() (int64, error) {
 	var resp struct {
 		S2C struct {
 			AccList []struct {
-				AccID  json.Number `json:"accID"`
-				TrdEnv int         `json:"trdEnv"`
+				AccID             json.Number `json:"accID"`
+				TrdEnv            int         `json:"trdEnv"`
+				AccType           int         `json:"accType"`
+				TrdMarketAuthList []int       `json:"trdMarketAuthList"`
 			} `json:"accList"`
 		} `json:"s2c"`
 	}
 	if err := json.Unmarshal(raw, &resp); err != nil {
 		return 0, fmt.Errorf("parse acc_list: %w", err)
 	}
+	// Pick account matching paper/live mode
+	// trdEnv: 0=simulate, 1=real
+	wantEnv := trdEnvReal
+	if c.paper {
+		wantEnv = 0 // simulate
+	}
+
+	// First pass: match trdEnv + trdMarket
 	for _, a := range resp.S2C.AccList {
 		id, _ := a.AccID.Int64()
-		if a.TrdEnv == trdEnvReal {
+		if a.TrdEnv == wantEnv && id > 0 {
+			for _, mkt := range a.TrdMarketAuthList {
+				if mkt == c.trdMarket {
+					c.trdEnv = a.TrdEnv
+					return id, nil
+				}
+			}
+		}
+	}
+	// Second pass: match trdEnv only
+	for _, a := range resp.S2C.AccList {
+		id, _ := a.AccID.Int64()
+		if a.TrdEnv == wantEnv && id > 0 {
+			c.trdEnv = a.TrdEnv
 			return id, nil
 		}
 	}
-	if len(resp.S2C.AccList) > 0 {
-		id, _ := resp.S2C.AccList[0].AccID.Int64()
-		return id, nil
+	// Third pass: any account with valid ID
+	for _, a := range resp.S2C.AccList {
+		id, _ := a.AccID.Int64()
+		if id > 0 {
+			c.trdEnv = a.TrdEnv
+			return id, nil
+		}
 	}
 	return 0, fmt.Errorf("no accounts found")
 }
