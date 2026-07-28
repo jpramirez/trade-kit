@@ -6,6 +6,22 @@ Format: [Semantic Versioning](https://semver.org/) — `MAJOR.MINOR.PATCH`
 
 ---
 
+## [0.10.1] — 2026-07-29
+
+### Fixed
+
+**moomoo: OpenD v10.8 compatibility (7 fixes)**
+- Protocol header byte offsets corrected per Futu SDK spec (magic is 2 bytes, not 4; proto_fmt_type at offset 6, not 16)
+- SHA1 body hash now computed and sent (OpenD v10.8 enforces signature verification)
+- `accID` parsed as `json.Number` (OpenD returns string, not int64)
+- `unlock` field added to UnlockTrade request (required by v10.8)
+- `securityFirm` enum corrected: was 5 (FutuCA), now 3 (FutuSG)
+- `trdMarket` field name fixed: was `trdMkt` (ignored by OpenD), now `trdMarket`
+- `trdEnv` matched to discovered account type: simulation accounts need trdEnv=0, not trdEnv=1
+- Retry logic for unlock when OpenD returns "not ready yet"
+
+---
+
 ## [0.9.1] — 2026-07-17
 
 ### Added
