@@ -393,10 +393,14 @@ func (c *Client) ModifyOrder(orderID string, qty int64, price, auxPrice float64,
 // ─── Internal ────────────────────────────────────────────────────────────────
 
 func (c *Client) trdHeader() map[string]any {
+	mkt := c.trdMarket
+	if mkt == 0 {
+		mkt = trdMarketSG // never send 0 — OpenD rejects unknown market
+	}
 	return map[string]any{
 		"trdEnv":    trdEnvReal,
 		"accID":     c.accID,
-		"trdMarket": c.trdMarket,
+		"trdMarket": mkt,
 	}
 }
 
