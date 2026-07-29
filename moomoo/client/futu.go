@@ -26,6 +26,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -69,6 +70,7 @@ var magic = [2]byte{0x46, 0x54} // "FT"
 // Client is a connected, authenticated Futu OpenD session.
 type Client struct {
 	conn         net.Conn
+	mu           sync.Mutex // serializes TCP request/response pairs
 	paper        bool
 	accID        int64
 	trdEnv       int // 0=simulate, 1=real (matches the discovered account)
@@ -578,6 +580,9 @@ func (c *Client) unlockTrade(pin string) error {
 }
 
 func (c *Client) call(protoID uint32, payload any) (json.RawMessage, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
