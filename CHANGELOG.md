@@ -6,6 +6,20 @@ Format: [Semantic Versioning](https://semver.org/) — `MAJOR.MINOR.PATCH`
 
 ---
 
+## [0.10.2] — 2026-07-29
+
+### Fixed
+
+**moomoo: real account discovery + account data parsing**
+- `GetAccList` now sends `trdCategory=1` + `needGeneralSecAccount=true` — without these, OpenD only returns simulation accounts
+- Account data field fixed: response uses `funds` not `fundInfo` — was returning zeros for a funded account
+- `trdMarket` auto-matched from account's `trdMarketAuthList` instead of hardcoding SG
+- `currency` field in account response is numeric (enum), not string
+- New `accounts` command lists all accounts with env, type, authorized markets, and scans for balances
+- `SwitchAccount()` method for changing active account at runtime
+
+---
+
 ## [0.10.1] — 2026-07-29
 
 ### Fixed
