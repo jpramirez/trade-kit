@@ -147,6 +147,10 @@ func (a *IBKRAdapter) Orders() ([]OrderInfo, error) {
 	return out, nil
 }
 
+func (a *IBKRAdapter) ListAccounts() ([]BrokerAccount, error) { return nil, nil }
+
+func (a *IBKRAdapter) SelectAccount(accID string) error { return nil }
+
 func (a *IBKRAdapter) IsPaper() bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

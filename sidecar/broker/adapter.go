@@ -15,8 +15,18 @@ type BrokerAdapter interface {
 	Orders() ([]OrderInfo, error)
 	Buy(symbol string, qty int, limitPrice, stopPrice float64) (entryID, stopID string, err error)
 	Sell(symbol string, qty int) (orderID string, err error)
+	ListAccounts() ([]BrokerAccount, error) // available accounts after connect
+	SelectAccount(accID string) error       // user picks which account to use
 	IsPaper() bool
 	SetPaper(paper bool)
+}
+
+// BrokerAccount represents one selectable account.
+type BrokerAccount struct {
+	AccID   string   `json:"acc_id"`
+	Env     string   `json:"env"`     // "real" or "simulate"
+	Type    int      `json:"type"`
+	Markets []string `json:"markets"` // ["HK", "US", "SG"]
 }
 
 // Position is the unified position type returned by all brokers.

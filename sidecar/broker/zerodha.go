@@ -140,6 +140,10 @@ func (a *ZerodhaAdapter) Orders() ([]OrderInfo, error) {
 	return out, nil
 }
 
+func (a *ZerodhaAdapter) ListAccounts() ([]BrokerAccount, error) { return nil, nil }
+
+func (a *ZerodhaAdapter) SelectAccount(accID string) error { return nil }
+
 func (a *ZerodhaAdapter) IsPaper() bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

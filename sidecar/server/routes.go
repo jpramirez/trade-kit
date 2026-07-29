@@ -18,6 +18,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/brokers", h.ListBrokers)
 	mux.HandleFunc("POST /v1/brokers/{id}/connect", h.ConnectBroker)
 	mux.HandleFunc("POST /v1/brokers/{id}/test", h.TestBroker)
+	mux.HandleFunc("GET /v1/brokers/{id}/accounts", h.ListBrokerAccounts)
+	mux.HandleFunc("POST /v1/brokers/{id}/select-account", h.SelectBrokerAccount)
 	mux.HandleFunc("POST /v1/brokers/{id}/disconnect", h.DisconnectBroker)
 	mux.HandleFunc("GET /v1/brokers/{id}/positions", h.GetPositions)
 	mux.HandleFunc("GET /v1/brokers/{id}/account", h.GetAccount)

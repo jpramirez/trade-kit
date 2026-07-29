@@ -71,6 +71,60 @@ func (a *MoomooAdapter) Connect(creds map[string]string) error {
 	return nil
 }
 
+func (a *MoomooAdapter) ListAccounts() ([]BrokerAccount, error) {
+	a.mu.RLock()
+	c := a.client
+	a.mu.RUnlock()
+	if c == nil {
+		return nil, fmt.Errorf("moomoo: not connected")
+	}
+	accounts, err := c.ListAccounts()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]BrokerAccount, len(accounts))
+	for i, a := range accounts {
+		env := "simulate"
+		if a.TrdEnv == 1 {
+			env = "real"
+		}
+		var markets []string
+		for _, m := range a.Markets {
+			markets = append(markets, mooclient.TrdMarketName(m))
+		}
+		out[i] = BrokerAccount{
+			AccID:   fmt.Sprintf("%d", a.AccID),
+			Env:     env,
+			Type:    a.AccType,
+			Markets: markets,
+		}
+	}
+	return out, nil
+}
+
+func (a *MoomooAdapter) SelectAccount(accID string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.client == nil {
+		return fmt.Errorf("moomoo: not connected")
+	}
+	accounts, err := a.client.ListAccounts()
+	if err != nil {
+		return err
+	}
+	for _, acc := range accounts {
+		if fmt.Sprintf("%d", acc.AccID) == accID {
+			mkt := 0
+			if len(acc.Markets) > 0 {
+				mkt = acc.Markets[0]
+			}
+			a.client.SwitchAccount(acc.AccID, acc.TrdEnv, mkt)
+			return nil
+		}
+	}
+	return fmt.Errorf("moomoo: account %s not found", accID)
+}
+
 func (a *MoomooAdapter) Test() error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

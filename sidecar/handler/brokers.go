@@ -70,6 +70,59 @@ func (h *Handlers) TestBroker(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ListBrokerAccounts returns available accounts after connecting.
+func (h *Handlers) ListBrokerAccounts(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	adapter, err := h.registry.Get(id)
+	if err != nil {
+		api.WriteError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if !adapter.Connected() {
+		api.WriteError(w, http.StatusBadRequest, "broker not connected")
+		return
+	}
+
+	accounts, err := adapter.ListAccounts()
+	if err != nil {
+		api.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	api.WriteJSON(w, http.StatusOK, accounts)
+}
+
+// SelectBrokerAccount sets the active account for a broker.
+func (h *Handlers) SelectBrokerAccount(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	adapter, err := h.registry.Get(id)
+	if err != nil {
+		api.WriteError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if !adapter.Connected() {
+		api.WriteError(w, http.StatusBadRequest, "broker not connected")
+		return
+	}
+
+	var req struct {
+		AccID string `json:"acc_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		api.WriteError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if req.AccID == "" {
+		api.WriteError(w, http.StatusBadRequest, "acc_id is required")
+		return
+	}
+
+	if err := adapter.SelectAccount(req.AccID); err != nil {
+		api.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	api.WriteOK(w)
+}
+
 // DisconnectBroker disconnects a broker.
 func (h *Handlers) DisconnectBroker(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
