@@ -176,6 +176,71 @@ func (c *Client) IsPaper() bool { return c.paper }
 // AccID returns the resolved account ID.
 func (c *Client) AccID() int64 { return c.accID }
 
+// TrdMarketName returns a human-readable name for a TrdMarket enum value.
+func TrdMarketName(m int) string {
+	switch m {
+	case 1: return "HK"
+	case 2: return "US"
+	case 3: return "CN"
+	case 4: return "HKCC"
+	case 5: return "Futures"
+	case 6: return "SG"
+	case 8: return "AU"
+	case 15: return "JP"
+	case 111: return "MY"
+	case 112: return "CA"
+	default: return fmt.Sprintf("Market_%d", m)
+	}
+}
+
+// AccountEntry represents one account from GetAccList.
+type AccountEntry struct {
+	AccID     int64
+	TrdEnv    int    // 0=simulate, 1=real
+	AccType   int
+	Markets   []int
+}
+
+// ListAccounts returns all accounts available in the current OpenD session.
+func (c *Client) ListAccounts() ([]AccountEntry, error) {
+	req := map[string]any{"c2s": map[string]any{"userID": 0}}
+	raw, err := c.call(protoGetAccList, req)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		S2C struct {
+			AccList []struct {
+				AccID             json.Number `json:"accID"`
+				TrdEnv            int         `json:"trdEnv"`
+				AccType           int         `json:"accType"`
+				TrdMarketAuthList []int       `json:"trdMarketAuthList"`
+			} `json:"accList"`
+		} `json:"s2c"`
+	}
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return nil, fmt.Errorf("parse acc_list: %w", err)
+	}
+	var out []AccountEntry
+	for _, a := range resp.S2C.AccList {
+		id, _ := a.AccID.Int64()
+		out = append(out, AccountEntry{
+			AccID:   id,
+			TrdEnv:  a.TrdEnv,
+			AccType: a.AccType,
+			Markets: a.TrdMarketAuthList,
+		})
+	}
+	return out, nil
+}
+
+// SwitchAccount changes the active account and market for subsequent requests.
+func (c *Client) SwitchAccount(accID int64, trdEnv, trdMarket int) {
+	c.accID = accID
+	c.trdEnv = trdEnv
+	c.trdMarket = trdMarket
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 type Position struct {
@@ -460,7 +525,7 @@ func (c *Client) discoverAccID() (int64, error) {
 		wantEnv = 0 // simulate
 	}
 
-	// First pass: match trdEnv + trdMarket
+	// First pass: match trdEnv + requested trdMarket
 	for _, a := range resp.S2C.AccList {
 		id, _ := a.AccID.Int64()
 		if a.TrdEnv == wantEnv && id > 0 {
@@ -472,19 +537,25 @@ func (c *Client) discoverAccID() (int64, error) {
 			}
 		}
 	}
-	// Second pass: match trdEnv only
+	// Second pass: match trdEnv, use the account's own market
 	for _, a := range resp.S2C.AccList {
 		id, _ := a.AccID.Int64()
 		if a.TrdEnv == wantEnv && id > 0 {
 			c.trdEnv = a.TrdEnv
+			if len(a.TrdMarketAuthList) > 0 {
+				c.trdMarket = a.TrdMarketAuthList[0]
+			}
 			return id, nil
 		}
 	}
-	// Third pass: any account with valid ID
+	// Third pass: any account — use its market
 	for _, a := range resp.S2C.AccList {
 		id, _ := a.AccID.Int64()
 		if id > 0 {
 			c.trdEnv = a.TrdEnv
+			if len(a.TrdMarketAuthList) > 0 {
+				c.trdMarket = a.TrdMarketAuthList[0]
+			}
 			return id, nil
 		}
 	}

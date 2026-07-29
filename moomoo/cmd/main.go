@@ -137,6 +137,8 @@ func main() {
 	rest := args[1:]
 
 	switch cmd {
+	case "accounts":
+		cmdAccounts(c, *jsonFlag)
 	case "positions":
 		cmdPositions(c, *jsonFlag)
 	case "account":
@@ -167,6 +169,54 @@ func main() {
 }
 
 // ── Read commands ─────────────────────────────────────────────────────────────
+
+func cmdAccounts(c *client.Client, asJSON bool) {
+	accounts, err := c.ListAccounts()
+	check(err)
+	if asJSON {
+		printJSON(accounts)
+		return
+	}
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ACC ID\tENV\tTYPE\tMARKETS")
+	fmt.Fprintln(w, "------\t---\t----\t-------")
+	for _, a := range accounts {
+		env := "SIMULATE"
+		if a.TrdEnv == 1 {
+			env = "REAL"
+		}
+		var markets []string
+		for _, m := range a.Markets {
+			markets = append(markets, client.TrdMarketName(m))
+		}
+		fmt.Fprintf(w, "%d\t%s\t%d\t%s\n", a.AccID, env, a.AccType, strings.Join(markets, ","))
+	}
+	w.Flush()
+
+	// Also show which account is currently active
+	fmt.Printf("\nActive: accID=%d\n", c.AccID())
+
+	// Scan all accounts for non-zero balances
+	fmt.Println("\nScanning all accounts for balances...")
+	for _, a := range accounts {
+		for _, mkt := range a.Markets {
+			c.SwitchAccount(a.AccID, a.TrdEnv, mkt)
+			acct, err := c.AccountInfo()
+			if err != nil {
+				continue
+			}
+			if acct.NetAssets > 0 || acct.Cash > 0 {
+				fmt.Printf("  ✓ accID=%d env=%d market=%s → Net=$%.2f Cash=$%.2f\n",
+					a.AccID, a.TrdEnv, client.TrdMarketName(mkt), acct.NetAssets, acct.Cash)
+			}
+			pos, err := c.Positions()
+			if err == nil && len(pos) > 0 {
+				fmt.Printf("  ✓ accID=%d env=%d market=%s → %d positions\n",
+					a.AccID, a.TrdEnv, client.TrdMarketName(mkt), len(pos))
+			}
+		}
+	}
+}
 
 func cmdPositions(c *client.Client, asJSON bool) {
 	positions, err := c.Positions()
