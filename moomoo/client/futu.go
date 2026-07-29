@@ -203,7 +203,7 @@ type AccountEntry struct {
 
 // ListAccounts returns all accounts available in the current OpenD session.
 func (c *Client) ListAccounts() ([]AccountEntry, error) {
-	req := map[string]any{"c2s": map[string]any{"userID": 0}}
+	req := map[string]any{"c2s": map[string]any{"userID": 0, "trdCategory": 1, "needGeneralSecAccount": true}}
 	raw, err := c.call(protoGetAccList, req)
 	if err != nil {
 		return nil, err
@@ -327,7 +327,8 @@ func (c *Client) Positions() ([]Position, error) {
 func (c *Client) AccountInfo() (AccountInfo, error) {
 	req := map[string]any{
 		"c2s": map[string]any{
-			"header": c.trdHeader(),
+			"header":   c.trdHeader(),
+			"currency": 1, // Trd_Common.Currency_HKD=1, will return in account's base currency
 		},
 	}
 	raw, err := c.call(protoGetAccInfo, req)
@@ -337,11 +338,11 @@ func (c *Client) AccountInfo() (AccountInfo, error) {
 	var resp struct {
 		S2C struct {
 			Funds struct {
-				TotalAssets float64 `json:"totalAssets"`
-				Cash        float64 `json:"cash"`
-				MarketVal   float64 `json:"marketVal"`
-				Power       float64 `json:"power"`
-				Currency    string  `json:"currency"`
+				TotalAssets float64     `json:"totalAssets"`
+				Cash        float64     `json:"cash"`
+				MarketVal   float64     `json:"marketVal"`
+				Power       float64     `json:"power"`
+				Currency    json.Number `json:"currency"`
 			} `json:"funds"`
 		} `json:"s2c"`
 	}
@@ -354,7 +355,7 @@ func (c *Client) AccountInfo() (AccountInfo, error) {
 		Cash:        fi.Cash,
 		MarketValue: fi.MarketVal,
 		BuyingPower: fi.Power,
-		Currency:    fi.Currency,
+		Currency:    fi.Currency.String(),
 	}, nil
 }
 
@@ -500,7 +501,7 @@ func (c *Client) initConnect() error {
 }
 
 func (c *Client) discoverAccID() (int64, error) {
-	req := map[string]any{"c2s": map[string]any{"userID": 0}}
+	req := map[string]any{"c2s": map[string]any{"userID": 0, "trdCategory": 1, "needGeneralSecAccount": true}}
 	raw, err := c.call(protoGetAccList, req)
 	if err != nil {
 		return 0, err
