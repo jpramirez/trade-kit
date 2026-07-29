@@ -336,19 +336,19 @@ func (c *Client) AccountInfo() (AccountInfo, error) {
 	}
 	var resp struct {
 		S2C struct {
-			FundInfo struct {
+			Funds struct {
 				TotalAssets float64 `json:"totalAssets"`
 				Cash        float64 `json:"cash"`
 				MarketVal   float64 `json:"marketVal"`
 				Power       float64 `json:"power"`
 				Currency    string  `json:"currency"`
-			} `json:"fundInfo"`
+			} `json:"funds"`
 		} `json:"s2c"`
 	}
 	if err := json.Unmarshal(raw, &resp); err != nil {
 		return AccountInfo{}, fmt.Errorf("parse account: %w", err)
 	}
-	fi := resp.S2C.FundInfo
+	fi := resp.S2C.Funds
 	return AccountInfo{
 		NetAssets:   fi.TotalAssets,
 		Cash:        fi.Cash,
