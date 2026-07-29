@@ -280,9 +280,6 @@ func (a *MoomooAdapter) SetPaper(paper bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.paper = paper
-	// Moomoo requires reconnect to change mode.
-	if a.client != nil && a.creds != nil {
-		a.client.Close()
-		a.client = nil
-	}
+	// Don't disconnect — account selection (real vs sim) handles the mode.
+	// Paper mode just controls whether orders are logged or executed.
 }
